@@ -104,6 +104,12 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
         std::cerr << "Could not estimate a planar model for the given dataset." << std::endl;
     }
 
+    // Plot the coefficients
+    for (auto c : coefficients->values) {
+        std::cout << c << ", ";
+    }
+    std::cout << std::endl;
+
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "plane segmentation took " << elapsedTime.count() << " milliseconds" << std::endl;

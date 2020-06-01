@@ -66,37 +66,30 @@ std::unordered_set<int> Ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int ma
 	std::unordered_set<int> inliersResult;
 	srand(time(NULL));
 
-	// Any random number
-	double r = 0.0;
-	// Maximum random number (as double)
-	const double r_max = (double) RAND_MAX;
-
 	int point_count = cloud->points.size();
 	std::cout << "There are " << point_count << " points in the PC (should be 20)\n";
 
-	double *distances = new double[point_count];
-	
-	// TODO: Fill in this function
-
 	// For max iterations 
-	for (int iter = 0; iter < maxIterations; iter++) {
-		std::cout << "* Iteration " << (iter+1) << "/" << maxIterations << std::endl;
+	while(maxIterations--) {
+		std::cout << "* Iterations left: " << maxIterations << std::endl;
 
 		// Randomly sample subset and fit line
-		r = rand();
-		int idx_1 = (int) (r / r_max * point_count);
-		int idx_2;
-		do {
-			r = rand();
-			idx_2 = (int) (r / r_max * point_count);
-		} while (idx_1 == idx_2);
-		std::cout << "* Chose indices " << idx_1 << " and " << idx_2 << std::endl;
+		std::unordered_set<int> inliers;
+		while (inliers.size() < 2) {
+			int r = rand();
+			r = r % point_count;
+			// Elements in the unordered set are guaranteed to be unique
+			inliers.insert(r);
+		}
+		// Create a vector easy access
+		std::vector<int> inliers_vec(inliers.begin(), inliers.end());
+		std::cout << "* Chose indices " << inliers_vec[0] << " and " << inliers_vec[1] << std::endl;
 		
 		// Compute the line parameters
-		double x1 = cloud->points[idx_1].x;
-		double y1 = cloud->points[idx_1].y;
-		double x2 = cloud->points[idx_2].x;
-		double y2 = cloud->points[idx_2].y;
+		double x1 = cloud->points[inliers_vec[0]].x;
+		double y1 = cloud->points[inliers_vec[0]].y;
+		double x2 = cloud->points[inliers_vec[1]].x;
+		double y2 = cloud->points[inliers_vec[1]].y;
 		double A = y1 - y2;
 		double B = x2 - x1;
 		double C = x1*y2 - x2*y1;
@@ -105,31 +98,36 @@ std::unordered_set<int> Ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int ma
 		A /= line_norm;
 		B /= line_norm;
 		C /= line_norm;
+		// The line is now fit and ready to use
 
 		// Measure distance between every point and fitted line
 		for (int ii=0; ii<point_count; ii++) {
-			distances[ii] = A*cloud->points[ii].x + B*cloud->points[ii].y + C;
-			distances[ii] = fabs(distances[ii]);
-		}
+			// Check if the point was one of the two points to
+			// create the line. If so, continue.
+			if (inliers.count(ii) > 0) {
+				continue;
+			}
 
-		// If distance is smaller than threshold count it as inlier
-		std::unordered_set<int> inliers_this_iteration;
-		for (int ii=0; ii<point_count; ii++) {
-			if (distances[ii] < distanceTol) {
-				inliers_this_iteration.insert(ii);
+			double distance = A*cloud->points[ii].x + B*cloud->points[ii].y + C;
+			distance = fabs(distance);
+
+			// If distance is smaller than threshold count it as inlier
+			if (distance <= distanceTol) {
+				inliers.insert(ii);
 			}
 		}
 
 		// Check if this is our new consensus set
-		if (inliers_this_iteration.size() > inliersResult.size()) {
-			std::cout << "* The consensus set has now " << inliers_this_iteration.size() << " inliers.\n";
-			inliersResult = inliers_this_iteration;
+		if (inliers.size() > inliersResult.size()) {
+			std::cout << "* The consensus set has now " << inliers.size() << " inliers.\n";
+			inliersResult = inliers;
 		}
 
 	}
 
-	
-	delete[] distances;
+	std::cout << "The final consensus set has " << inliersResult.size()
+			<< " inliers.\n";
+
 
 	// Return indicies of inliers from fitted line with most inliers
 	// This is the consensus set

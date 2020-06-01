@@ -135,6 +135,85 @@ std::unordered_set<int> Ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int ma
 
 }
 
+std::unordered_set<int> RansacPlane(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+								    int maxIterations,
+									float distanceTol)
+{
+	std::unordered_set<int> inliersResult;
+	srand(time(NULL));
+
+	int point_count = cloud->points.size();
+	std::cout << "Plane RANSAC: There are " << point_count << " points in the PC\n";
+
+	// For max iterations 
+	while(maxIterations--) {
+		std::cout << "* Iterations left: " << maxIterations << std::endl;
+
+		// Randomly sample subset and fit plane
+		std::unordered_set<int> inliers;
+		while (inliers.size() < 3) {
+			int r = rand();
+			r = r % point_count;
+			// Elements in the unordered set are guaranteed to be unique
+			inliers.insert(r);
+		}
+		// Create a vector easy access
+		std::vector<int> inliers_vec(inliers.begin(), inliers.end());
+		std::cout << "* Chose indices: " << inliers_vec[0] << ", "
+				 << inliers_vec[1] << ", " << inliers_vec[2] << std::endl;
+		
+		// Compute the plane parameters
+		// First of all, grab the 3 points on the plane
+		linalg::Vector3<double> p1(cloud->points[inliers_vec[0]].x, cloud->points[inliers_vec[0]].y, cloud->points[inliers_vec[0]].z);
+		linalg::Vector3<double> p2(cloud->points[inliers_vec[1]].x, cloud->points[inliers_vec[1]].y, cloud->points[inliers_vec[1]].z);
+		linalg::Vector3<double> p3(cloud->points[inliers_vec[2]].x, cloud->points[inliers_vec[2]].y, cloud->points[inliers_vec[2]].z);
+		auto v1 = p2 - p1;
+		auto v2 = p3 - p1;
+		auto n = v1.cross(v2);
+		n.normalize();
+
+		linalg::Plane<double> plane;
+		plane.a = n.x;
+		plane.b = n.y;
+		plane.c = n.z;
+		plane.d = -1.0 * (n.dot(p1));
+		// The plane is now fit and ready to use
+
+		// Measure distance between every point and the fitted plane
+		for (int ii=0; ii<point_count; ii++) {
+			// Check if the point was one of the three points to
+			// create the plane. If so, continue.
+			if (inliers.count(ii) > 0) {
+				continue;
+			}
+
+			linalg::Vector3<double> pt(cloud->points[ii].x, cloud->points[ii].y, cloud->points[ii].z);
+			double distance = plane.distance(pt);
+
+			// If distance is smaller than threshold count it as inlier
+			if (distance <= distanceTol) {
+				inliers.insert(ii);
+			}
+		}
+
+		// Check if this is our new consensus set
+		if (inliers.size() > inliersResult.size()) {
+			std::cout << "* The consensus set has now " << inliers.size() << " inliers.\n";
+			inliersResult = inliers;
+		}
+
+	}
+
+	std::cout << "The final consensus set has " << inliersResult.size()
+			<< " inliers.\n";
+
+
+	// Return indicies of inliers from fitted line with most inliers
+	// This is the consensus set
+	return inliersResult;
+
+}
+
 int main ()
 {
 
@@ -142,11 +221,13 @@ int main ()
 	pcl::visualization::PCLVisualizer::Ptr viewer = initScene();
 
 	// Create data
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = CreateData();
+	//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = CreateData();
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = CreateData3D();
 	
 
 	// TODO: Change the max iteration and distance tolerance arguments for Ransac function
-	std::unordered_set<int> inliers = Ransac(cloud, 10, 1.0);
+	//std::unordered_set<int> inliers = Ransac(cloud, 10, 1.0);
+	std::unordered_set<int> inliers = RansacPlane(cloud, 100, 0.2);
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr  cloudInliers(new pcl::PointCloud<pcl::PointXYZ>());
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOutliers(new pcl::PointCloud<pcl::PointXYZ>());

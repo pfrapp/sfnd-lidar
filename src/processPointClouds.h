@@ -81,6 +81,18 @@ std::ostream& operator<<(std::ostream& out, const Vector3<T> v) {
     return out;
 }
 
+template<typename T>
+class Plane {
+    public:
+    T a, b, c, d;
+
+    //! Compute the distance of a point to the plane
+    T distance(const Vector3<T>& v) {
+        T dist = a*v.x + b*v.y + c*v.z + d;
+        return fabs(dist);
+    }
+};
+
 void test() {
     Vector3<double> A(1.0, 2.0, 3.0);
     Vector3<double> B(4.0, 5.0, 6.0);

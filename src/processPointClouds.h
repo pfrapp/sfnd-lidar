@@ -15,6 +15,7 @@
 #include <iostream> 
 #include <string>  
 #include <vector>
+#include <unordered_set>
 #include <ctime>
 #include <chrono>
 #include "render/box.h"
@@ -93,22 +94,24 @@ class Plane {
     }
 };
 
-void test() {
-    Vector3<double> A(1.0, 2.0, 3.0);
-    Vector3<double> B(4.0, 5.0, 6.0);
+// Uncomment those tests, as it yields linker errors
+// due to this #include "***.cpp" logic.
+// void test() {
+//     Vector3<double> A(1.0, 2.0, 3.0);
+//     Vector3<double> B(4.0, 5.0, 6.0);
 
-    auto v_add = A+B;
-    auto v_minus = A-B;
-    std::cout << A << " + " << B << " = " << v_add << std::endl;
-    std::cout << A << " - " << B << " = " << v_minus << std::endl;
-    std::cout << "norm(A) = " << A.norm() << std::endl;
-    std::cout << "A.B = " << A.dot(B) << std::endl;
-    auto v_cross = A.cross(B);
-    std::cout << "A x B = " << v_cross << std::endl;
-    B.normalize();
-    std::cout << "B has now been normalized\n";
-    std::cout << "B = " << B << std::endl;
-}
+//     auto v_add = A+B;
+//     auto v_minus = A-B;
+//     std::cout << A << " + " << B << " = " << v_add << std::endl;
+//     std::cout << A << " - " << B << " = " << v_minus << std::endl;
+//     std::cout << "norm(A) = " << A.norm() << std::endl;
+//     std::cout << "A.B = " << A.dot(B) << std::endl;
+//     auto v_cross = A.cross(B);
+//     std::cout << "A x B = " << v_cross << std::endl;
+//     B.normalize();
+//     std::cout << "B has now been normalized\n";
+//     std::cout << "B = " << B << std::endl;
+// }
 
 } // namespace linalg
 
@@ -128,6 +131,15 @@ public:
     std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> SeparateClouds(pcl::PointIndices::Ptr inliers, typename pcl::PointCloud<PointT>::Ptr cloud);
 
     std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> SegmentPlane(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold);
+
+    //! This is the function that uses my own plane RANSAC
+    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> Segment(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold);
+
+    //! My Plane RANSAC
+    std::unordered_set<int> RansacPlane(linalg::Plane<double> *ptr_plane,
+                                    typename pcl::PointCloud<PointT>::Ptr cloud,
+								    int maxIterations,
+									float distanceTol);
 
     std::vector<typename pcl::PointCloud<PointT>::Ptr> Clustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize);
 

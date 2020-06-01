@@ -105,6 +105,7 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     }
 
     // Plot the coefficients
+    std::cout << "Plane coefficients: ";
     for (auto c : coefficients->values) {
         std::cout << c << ", ";
     }
@@ -118,6 +119,120 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     return segResult;
 }
 
+template<typename PointT>
+std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::Segment(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold) {
+    // Time segmentation process
+    auto startTime = std::chrono::steady_clock::now();
+
+    // Plane coefficients
+    linalg::Plane<double> plane;
+
+    // Inlieres
+    std::unordered_set<int> inliers_set = RansacPlane(&plane, cloud, maxIterations, distanceThreshold);
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+    for (auto index : inliers_set) {
+        inliers->indices.push_back(index);
+    }
+
+    // Plot the coefficients
+    std::cout << "Plane coefficients: ";
+    std::cout << plane.a << ", " << plane.b << ", " << plane.c << ", " << plane.d;
+    std::cout << std::endl;
+
+    auto endTime = std::chrono::steady_clock::now();
+    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    std::cout << "my own plane segmentation took " << elapsedTime.count() << " milliseconds" << std::endl;
+
+    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> segResult = SeparateClouds(inliers,cloud);
+    return segResult;
+}
+
+template<typename PointT>
+std::unordered_set<int> ProcessPointClouds<PointT>::RansacPlane(
+                                    linalg::Plane<double> *ptr_plane,
+                                    typename pcl::PointCloud<PointT>::Ptr cloud,
+								    int maxIterations,
+									float distanceTol)
+{
+	std::unordered_set<int> inliersResult;
+	srand(time(NULL));
+
+	int point_count = cloud->points.size();
+	std::cout << "Plane RANSAC: There are " << point_count << " points in the PC\n";
+
+    linalg::Plane<double> plane;
+
+	// For max iterations 
+	while(maxIterations--) {
+		//std::cout << "* Iterations left: " << maxIterations << std::endl;
+
+		// Randomly sample subset and fit plane
+		std::unordered_set<int> inliers;
+		while (inliers.size() < 3) {
+			int r = rand();
+			r = r % point_count;
+			// Elements in the unordered set are guaranteed to be unique
+			inliers.insert(r);
+		}
+		// Create a vector easy access
+		std::vector<int> inliers_vec(inliers.begin(), inliers.end());
+		//std::cout << "* Chose indices: " << inliers_vec[0] << ", "
+	//			 << inliers_vec[1] << ", " << inliers_vec[2] << std::endl;
+		
+		// Compute the plane parameters
+		// First of all, grab the 3 points on the plane
+		linalg::Vector3<double> p1(cloud->points[inliers_vec[0]].x, cloud->points[inliers_vec[0]].y, cloud->points[inliers_vec[0]].z);
+		linalg::Vector3<double> p2(cloud->points[inliers_vec[1]].x, cloud->points[inliers_vec[1]].y, cloud->points[inliers_vec[1]].z);
+		linalg::Vector3<double> p3(cloud->points[inliers_vec[2]].x, cloud->points[inliers_vec[2]].y, cloud->points[inliers_vec[2]].z);
+		auto v1 = p2 - p1;
+		auto v2 = p3 - p1;
+		auto n = v1.cross(v2);
+		n.normalize();
+
+		
+		plane.a = n.x;
+		plane.b = n.y;
+		plane.c = n.z;
+		plane.d = -1.0 * (n.dot(p1));
+		// The plane is now fit and ready to use
+
+		// Measure distance between every point and the fitted plane
+		for (int ii=0; ii<point_count; ii++) {
+			// Check if the point was one of the three points to
+			// create the plane. If so, continue.
+			if (inliers.count(ii) > 0) {
+				continue;
+			}
+
+			linalg::Vector3<double> pt(cloud->points[ii].x, cloud->points[ii].y, cloud->points[ii].z);
+			double distance = plane.distance(pt);
+
+			// If distance is smaller than threshold count it as inlier
+			if (distance <= distanceTol) {
+				inliers.insert(ii);
+			}
+		}
+
+		// Check if this is our new consensus set
+		if (inliers.size() > inliersResult.size()) {
+			//std::cout << "* The consensus set has now " << inliers.size() << " inliers.\n";
+			inliersResult = inliers;
+		}
+
+	}
+
+	//std::cout << "The final consensus set has " << inliersResult.size()
+//			<< " inliers.\n";
+    if (ptr_plane != nullptr) {
+        *ptr_plane = plane;
+    }
+
+
+	// Return indicies of inliers from fitted line with most inliers
+	// This is the consensus set
+	return inliersResult;
+
+}
 
 template<typename PointT>
 std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::Clustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize)

@@ -41,29 +41,20 @@ struct KdTree
 		bool attach_to_left = false;
 		while (n != NULL) {
 			parent = n;
-			if (depth%2 == 0) {
-				// Split along x
-				if (point[0] < n->point[0]) {
-					// Take the left branch
-					n = n->left;
-					attach_to_left = true;
-				} else {
-					// Take the right branch
-					n = n->right;
-					attach_to_left = false;
-				}
+			// Current dimension
+			// cd == 0: Split along x
+			// cd == 1: Split along y
+			int cd = depth % 2;
+			if (point[cd] < n->point[cd]) {
+				// Take the left branch
+				n = n->left;
+				attach_to_left = true;
 			} else {
-				// Split along y
-				if (point[1] < n->point[1]) {
-					// Take the left branch
-					n = n->left;
-					attach_to_left = true;
-				} else {
-					// Take the right branch
-					n = n->right;
-					attach_to_left = false;
-				}
+				// Take the right branch
+				n = n->right;
+				attach_to_left = false;
 			}
+
 			// Increase the depth
 			depth++;
 		}

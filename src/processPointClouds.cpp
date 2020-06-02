@@ -241,9 +241,39 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
     // Time clustering process
     auto startTime = std::chrono::steady_clock::now();
 
+    // This is a vector of point clouds (in the form of point cloud pointers).
     std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
-    // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
+    // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles.
+    // Just like with the segmentation task, we start by using the built-in PCL
+    // functions.
+    typename pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+    tree->setInputCloud(cloud);
+
+    std::vector<pcl::PointIndices> cluster_indices;
+    pcl::EuclideanClusterExtraction<PointT> ec;
+    ec.setClusterTolerance(clusterTolerance);
+    ec.setMinClusterSize(minSize);
+    ec.setMaxClusterSize(maxSize);
+    ec.setSearchMethod(tree);
+    ec.setInputCloud(cloud);
+    ec.extract(cluster_indices);
+
+    // We now have the indices of each cluster.
+    std::cout << "There are " << cluster_indices.size() << " clusters.\n";
+
+    // Based on the indices, create the point clouds for each cluster.
+    for (pcl::PointIndices& indices_of_one_cluster : cluster_indices) {
+        typename pcl::PointCloud<PointT>::Ptr cloud_of_one_cluster(new pcl::PointCloud<PointT>);
+        for (int idx : indices_of_one_cluster.indices) {
+            cloud_of_one_cluster->points.push_back(cloud->points[idx]);
+        }
+        cloud_of_one_cluster->width = cloud_of_one_cluster->points.size();
+        cloud_of_one_cluster->height = 1;
+        cloud_of_one_cluster->is_dense = true;
+        clusters.push_back(cloud_of_one_cluster);
+    }
+
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);

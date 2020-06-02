@@ -30,6 +30,51 @@ struct KdTree
 		// TODO: Fill in this function to insert a new point into the tree
 		// the function should create a new node and place correctly with in the root 
 
+		if (root == NULL) {
+			root = new Node(point, id);
+			return;
+		}
+
+		Node *n = root;
+		Node *parent = NULL;
+		int depth = 0;
+		bool attach_to_left = false;
+		while (n != NULL) {
+			parent = n;
+			if (depth%2 == 0) {
+				// Split along x
+				if (point[0] < n->point[0]) {
+					// Take the left branch
+					n = n->left;
+					attach_to_left = true;
+				} else {
+					// Take the right branch
+					n = n->right;
+					attach_to_left = false;
+				}
+			} else {
+				// Split along y
+				if (point[1] < n->point[1]) {
+					// Take the left branch
+					n = n->left;
+					attach_to_left = true;
+				} else {
+					// Take the right branch
+					n = n->right;
+					attach_to_left = false;
+				}
+			}
+			// Increase the depth
+			depth++;
+		}
+		// Now n is NULL: create a new node and attach it to the parent.
+		n = new Node(point, id);
+		if (attach_to_left) {
+			parent->left = n;
+		} else {
+			parent->right = n;
+		}
+
 	}
 
 	// return a list of point ids in the tree that are within distance of target

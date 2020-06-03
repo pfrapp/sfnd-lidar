@@ -18,8 +18,8 @@ struct Node
 };
 
 enum class KdBoxState : int {
-	BOX_IS_LEFT = 0,
-	BOX_IS_RIGHT = 1,
+	BOX_IS_EXCLUSIVLY_LEFT = 0,
+	BOX_IS_EXCLUSIVLY_RIGHT = 1,
 	BOX_GOT_INTERSECTED = 2
 };
 
@@ -98,11 +98,34 @@ struct KdBox {
 	KdBoxState getBoxState(const std::vector<T>& point_on_separating_plane, int current_dimension) const {
 		T plane_coordinate = point_on_separating_plane[current_dimension];
 		if (upper_bounds[current_dimension] < plane_coordinate) {
-			return KdBoxState::BOX_IS_LEFT;
+			return KdBoxState::BOX_IS_EXCLUSIVLY_LEFT;
 		} else if (lower_bounds[current_dimension] > plane_coordinate) {
-			return KdBoxState::BOX_IS_RIGHT;
+			return KdBoxState::BOX_IS_EXCLUSIVLY_RIGHT;
 		} else {
 			return KdBoxState::BOX_GOT_INTERSECTED;
+		}
+	}
+
+	// It turns out that this "exclusivly-left" vs. "exclusivly-right" vs. "intersecting"
+	// thinking is not good.
+	// It is better (see solution) to just be concerned about whether or not
+	// a box is (partly) within one half space.
+	// That is all we need to know, as we then know that we need to consider this half space.
+	bool isBoxInLeftHalfSpace(const std::vector<T>& point_on_separating_plane, int current_dimension) const {
+		T plane_coordinate = point_on_separating_plane[current_dimension];
+		if (lower_bounds[current_dimension] > plane_coordinate) {
+			return false; 	// The box is exclusivly-right
+		} else {
+			return true;	// The box might at least be partly in the left half space.
+		}
+	}
+
+	bool isBoxInRightHalfSpace(const std::vector<T>& point_on_separating_plane, int current_dimension) const {
+		T plane_coordinate = point_on_separating_plane[current_dimension];
+		if (upper_bounds[current_dimension] < plane_coordinate) {
+			return false; 	// The box is exclusivly-left
+		} else {
+			return true;	// The box might at least be partly in the right half space.
 		}
 	}
 };
@@ -159,10 +182,13 @@ struct KdTree
 	}
 
 	// \param node Node under consideration. Can be NULL.
-	void searchHelper(std::vector<int> *ids, const KdBox<float, 2>& box, const Node *node, int depth) {
+	void searchHelper(std::vector<int> *ids, int *nodes_touched, const KdBox<float, 2>& box, const Node *node, int depth) {
 		if (node == NULL) {
 			return;
 		}
+		std::cout << "Checking node " << node->id << ".\n";
+		(*nodes_touched)++;	 // Dereferencing has a lower operator priority than suffix incrementing!
+		// std::cout << "*nodes_touched = " << *nodes_touched << ".\n";
 
 		// Easy access to the point.
 		const std::vector<float>& point = node->point;
@@ -176,39 +202,25 @@ struct KdTree
 			// is cheaper.
 			if (box.isPointWithinDistanceTolerance(point)) {
 				ids->push_back(node->id);
-				// Check both child nodes.
-				searchHelper(ids, box, node->left, depth+1);
-				searchHelper(ids, box, node->right, depth+1);
-			}
-		} else {
-			// The point is _not_ within the box.
-			// Now check if the box intersects the plane that goes through this point,
-			// or if it is completely on one side.
-			int current_dimension = depth % box.N;
-			KdBoxState box_state = box.getBoxState(point, current_dimension);
-			switch(box_state) {
-				// If the box is completely to the left, we only
-				// need to consider the left child node.
-				case KdBoxState::BOX_IS_LEFT:
-					searchHelper(ids, box, node->left, depth+1);
-					break;
-
-				// If the box is completely to the right, we only
-				// need to consider the right child node.
-				case KdBoxState::BOX_IS_RIGHT:
-					searchHelper(ids, box, node->right, depth+1);
-					break;
-
-				// If the box intersects the plane, we need to consider
-				// both child nodes.
-				// Note that the point itself is not within the box, if
-				// we are in this execution branch.
-				case KdBoxState::BOX_GOT_INTERSECTED:
-					searchHelper(ids, box, node->left, depth+1);
-					searchHelper(ids, box, node->right, depth+1);
-					break;
+				std::cout << "Node " << node->id << " is within the tolerance.\n";
+				// Earlier, before refactoring: Check both child nodes.
+				// This is actually wrong. Just because this point is within the box,
+				// it does not mean that the child nodes need to be.
+				// That is because they can be somewhere completely different in the space.
+				// All we know about them is that they are on one of either two sides
+				// of a plane.
 			}
 		}
+
+		// Now check the state of the box with respect to the separating plane.
+		int current_dimension = depth % box.N;
+		if (box.isBoxInLeftHalfSpace(point, current_dimension)) {
+			searchHelper(ids, nodes_touched, box, node->left, depth+1);
+		}
+		if (box.isBoxInRightHalfSpace(point, current_dimension)) {
+			searchHelper(ids, nodes_touched, box, node->right, depth+1);
+		}
+
 	}
 
 	// return a list of point ids in the tree that are within distance of target
@@ -219,10 +231,14 @@ struct KdTree
 		// Start with the root node.
 		Node *node = this->root;
 
+		std::cout << "Looking for target (" << target[0] << ", " << target[1] << ") with tolerance " << distanceTol << ".\n";
+		int nodes_touched = 0;
+
 		// Create a box around the target point.
 		KdBox<float, 2> box(target, distanceTol);
 
-		searchHelper(&ids, box, node, 0);
+		searchHelper(&ids, &nodes_touched, box, node, 0);
+		std::cout << "Touched " << nodes_touched << " nodes in total.\n";
 
 		return ids;
 	}

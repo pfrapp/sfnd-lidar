@@ -67,6 +67,12 @@ void simpleHighway(pcl::visualization::PCLVisualizer::Ptr& viewer)
         std::cout << "Cluster size: ";
         pointCloudProcessor->numPoints(cluster);
         renderPointCloud(viewer, cluster, "obstacleCloud"+std::to_string(clusterID), colors[clusterID%colors.size()]);
+
+        // Render the bounding boxes
+        Box bbox = pointCloudProcessor->BoundingBox(cluster);
+        float opacity = 0.3;
+        renderBox(viewer, bbox, clusterID, colors[clusterID%colors.size()], opacity);
+
         ++clusterID;
     }
 }

@@ -76,12 +76,90 @@ void render2DTree(Node* node, pcl::visualization::PCLVisualizer::Ptr& viewer, Bo
 
 }
 
+// When you call this function, you guarantee that the point (addressed by 'point_idx') is in the vicinity or proximity
+// of the cluster 'cluster'.
+void proximity(std::vector<int> *cluster, int point_idx, int *remaining_point_count, const std::vector<std::vector<float>>& points, std::vector<bool> *processed, KdTree *tree, float distanceTol) {
+	// Is this necessary? Or not? Or does it harm?
+	// It is included in the slides, but not in the pseudo-code in the text.
+	// This is actually checked _before_ calling the proximity function.
+	// Commenting this code in does not change the (visible?) program behavior.
+	// if ((*processed)[point_idx]) {
+	// 	return;
+	// }
+
+	// Mark the point as processed.
+	(*processed)[point_idx] = true;
+
+	// Add the point to the cluster.
+	cluster->push_back(point_idx);
+	// std::cout << "Added point " << point_idx << " to the current cluster.\n";
+
+	// One point less remaining.
+	(*remaining_point_count)--;
+
+	// Find all nearby points (that's where the Kd-tree comes in).
+	std::vector<int> nearby = tree->search(points[point_idx], distanceTol);
+	// std::cout << "Point " << point_idx << " has " << nearby.size() << " nearby points: ";
+	// for (int nearby_point_idx : nearby) {
+		// std::cout << nearby_point_idx << ", ";
+	// }
+	// std::cout << std::endl;
+
+	// Iterate over all nearby points.
+	for (int nearby_point_idx : nearby) {
+		// Do not consider this point if it has already been processed.
+		if ((*processed)[nearby_point_idx]) {
+			continue;
+		}
+
+		// Find all points that belong to this cluster in a recursive manner.
+		// As these points have been obtained by the tree's search method, we know
+		// that they are in the proximity.
+		proximity(cluster, nearby_point_idx, remaining_point_count, points, processed, tree, distanceTol);
+	}
+	return;
+}
+
 std::vector<std::vector<int>> euclideanCluster(const std::vector<std::vector<float>>& points, KdTree* tree, float distanceTol)
 {
 
 	// TODO: Fill out this function to return list of indices for each cluster
 
 	std::vector<std::vector<int>> clusters;
+
+	// Hold a boolean for each point which denotes whether or not the
+	// point has already been processed.
+	int point_count = points.size();
+	int remaining_point_count = point_count;
+	std::vector<bool> processed(point_count, false);
+	// std::cout << "Starting the Euclidean clustering. There are " << point_count << " points in total.\n";
+
+	// Loop over all points
+	for (int point_idx = 0; point_idx < point_count; point_idx++) {
+		// std::cout << "Looking at point " << point_idx << " at (" << points[point_idx][0] << ", " << points[point_idx][1] << ").\n";
+		// If there are no points left, exit early.
+		if (remaining_point_count == 0) {
+			// std::cout << "No points left -- exiting early." << std::endl;
+			break;
+		}
+
+		// Do not consider this point if it has already been processed.
+		if (processed[point_idx]) {
+			continue;
+		}
+
+		// Create a new cluster.
+		std::vector<int> new_cluster;
+		// std::cout << "Creating a new cluster initiated with point " << point_idx << " at (" << points[point_idx][0] << ", " << points[point_idx][1] << ").\n";
+
+		// Find all points that belong to this cluster in a recursive manner.
+		// As this point initiates a new cluster, we know that it is in the proximity.
+		proximity(&new_cluster, point_idx, &remaining_point_count, points, &processed, tree, distanceTol);
+
+		// Add the new cluster to our clusters.
+		clusters.push_back(new_cluster);
+	}
+
  
 	return clusters;
 
@@ -130,7 +208,7 @@ int main ()
 
   	// Render clusters
   	int clusterId = 0;
-	std::vector<Color> colors = {Color(1,0,0), Color(0,1,0), Color(0,0,1)};
+	std::vector<Color> colors = {Color(1,0,0), Color(0,1,0), Color(0,1,1)};
   	for(std::vector<int> cluster : clusters)
   	{
   		pcl::PointCloud<pcl::PointXYZ>::Ptr clusterCloud(new pcl::PointCloud<pcl::PointXYZ>());

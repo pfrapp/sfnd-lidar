@@ -75,6 +75,24 @@ void simpleHighway(pcl::visualization::PCLVisualizer::Ptr& viewer)
 
         ++clusterID;
     }
+
+}
+
+void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer)
+{
+    // ----------------------------------------------------
+    // ------Lesson 4: Working with Real PCD         ------
+    // ------Open 3D viewer and display a city block ------
+    // ----------------------------------------------------
+
+    // Create a point cloud processor which also considers the intensity I.
+    ProcessPointClouds<pcl::PointXYZI> *pointProcessorI = new ProcessPointClouds<pcl::PointXYZI>();
+
+    // Load the point cloud data.
+    pcl::PointCloud<pcl::PointXYZI>::Ptr inputCloud = pointProcessorI->loadPcd("../src/sensors/data/pcd/data_1/0000000000.pcd");
+
+    // Show the point cloud.
+    renderPointCloud(viewer,inputCloud,"inputCloud");
 }
 
 
@@ -109,7 +127,8 @@ int main (int argc, char** argv)
     pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
     CameraAngle setAngle = XY;
     initCamera(setAngle, viewer);
-    simpleHighway(viewer);
+    // simpleHighway(viewer);
+    cityBlock(viewer);
 
     while (!viewer->wasStopped ())
     {

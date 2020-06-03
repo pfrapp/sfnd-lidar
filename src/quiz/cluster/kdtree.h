@@ -186,7 +186,7 @@ struct KdTree
 		if (node == NULL) {
 			return;
 		}
-		std::cout << "Checking node " << node->id << ".\n";
+		// std::cout << "Checking node " << node->id << ".\n";
 		(*nodes_touched)++;	 // Dereferencing has a lower operator priority than suffix incrementing!
 		// std::cout << "*nodes_touched = " << *nodes_touched << ".\n";
 
@@ -202,7 +202,7 @@ struct KdTree
 			// is cheaper.
 			if (box.isPointWithinDistanceTolerance(point)) {
 				ids->push_back(node->id);
-				std::cout << "Node " << node->id << " is within the tolerance.\n";
+				// std::cout << "Node " << node->id << " is within the tolerance.\n";
 				// Earlier, before refactoring: Check both child nodes.
 				// This is actually wrong. Just because this point is within the box,
 				// it does not mean that the child nodes need to be.
@@ -231,14 +231,14 @@ struct KdTree
 		// Start with the root node.
 		Node *node = this->root;
 
-		std::cout << "Looking for target (" << target[0] << ", " << target[1] << ") with tolerance " << distanceTol << ".\n";
+		// std::cout << "Looking for target (" << target[0] << ", " << target[1] << ") with tolerance " << distanceTol << ".\n";
 		int nodes_touched = 0;
 
 		// Create a box around the target point.
 		KdBox<float, 2> box(target, distanceTol);
 
 		searchHelper(&ids, &nodes_touched, box, node, 0);
-		std::cout << "Touched " << nodes_touched << " nodes in total.\n";
+		// std::cout << "Touched " << nodes_touched << " nodes in total.\n";
 
 		return ids;
 	}

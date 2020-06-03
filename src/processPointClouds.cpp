@@ -29,11 +29,42 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
 
     // TODO:: Fill in the function to do voxel grid point reduction and region based filtering
 
+    std::cout << "There are " << cloud->points.size() << " points in the original point cloud.\n";
+
+    // First, use a voxel grid.
+    pcl::VoxelGrid<pcl::PointXYZI> voxel_grid;
+    voxel_grid.setInputCloud(cloud);
+    voxel_grid.setLeafSize(filterRes, filterRes, filterRes);
+    typename pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
+    // filter or applyFilter?
+    voxel_grid.filter(*cloud_filtered);
+
+    std::cout << "There are " << cloud_filtered->points.size() << " points in the voxel-filtered point cloud.\n";
+
+    // Second, crop the region of interest.
+    typename pcl::CropBox<PointT>::Ptr roi_box(new pcl::CropBox<PointT>);
+    roi_box->setMin(minPoint);
+    roi_box->setMax(maxPoint);
+    roi_box->setInputCloud(cloud_filtered);
+    // pcl::IndicesPtr indices_within_roi = roi_box->getIndices();
+    // std::cout << "There are " << indices_within_roi->size() << " indices computed by the crop box.\n";
+
+
+    // pcl::ExtractIndices<PointT> extract;
+    // extract.setInputCloud(cloud_filtered);
+    // extract.setIndices(indices_within_roi);
+    typename pcl::PointCloud<PointT>::Ptr cloud_filtered_and_cropped(new pcl::PointCloud<PointT>);
+    roi_box->filter(*cloud_filtered_and_cropped);
+    // extract.filter(*cloud_filtered_and_cropped);
+
+    std::cout << "There are " << cloud_filtered_and_cropped->points.size() << " points in the cropped point cloud.\n";
+
+
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    return cloud;
+    return cloud_filtered_and_cropped;
 
 }
 

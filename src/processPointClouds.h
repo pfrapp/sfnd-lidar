@@ -259,8 +259,6 @@ struct KdTree
 
 	void insert(std::vector<T> point, int id)
 	{
-		// TODO: Fill in this function to insert a new point into the tree
-		// the function should create a new node and place correctly with in the root 
 
 		if (root == NULL) {
 			root = new Node(point, id);
@@ -418,8 +416,6 @@ template<typename T, int Dim>
 std::vector<std::vector<int>> euclideanCluster(const std::vector<std::vector<T>>& points, KdTree<T, Dim> *tree, T distanceTol)
 {
 
-	// TODO: Fill out this function to return list of indices for each cluster
-
 	std::vector<std::vector<int>> clusters;
 
 	// Hold a boolean for each point which denotes whether or not the
@@ -481,7 +477,7 @@ public:
     std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> SegmentPlane(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold);
 
     //! This is the function that uses my own plane RANSAC
-    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> Segment(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold);
+    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> MySegmentPlane(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceThreshold);
 
     //! My Plane RANSAC
     std::unordered_set<int> RansacPlane(linalg::Plane<double> *ptr_plane,

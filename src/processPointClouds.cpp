@@ -29,7 +29,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
 
     // TODO:: Fill in the function to do voxel grid point reduction and region based filtering
 
-    std::cout << "There are " << cloud->points.size() << " points in the original point cloud.\n";
+    // std::cout << "There are " << cloud->points.size() << " points in the original point cloud.\n";
 
     // First, use a voxel grid.
     pcl::VoxelGrid<PointT> voxel_grid;
@@ -39,7 +39,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     // filter or applyFilter?
     voxel_grid.filter(*cloud_filtered);
 
-    std::cout << "There are " << cloud_filtered->points.size() << " points in the voxel-filtered point cloud.\n";
+    // std::cout << "There are " << cloud_filtered->points.size() << " points in the voxel-filtered point cloud.\n";
 
     // Second, crop the region of interest.
     typename pcl::CropBox<PointT>::Ptr roi_box(new pcl::CropBox<PointT>);
@@ -58,7 +58,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     std::vector<int> roof_point_indices;
     roof_box->filter(roof_point_indices);
 
-    std::cout << "There are " << cloud_filtered_and_cropped->points.size() << " points in the cropped point cloud.\n";
+    // std::cout << "There are " << cloud_filtered_and_cropped->points.size() << " points in the cropped point cloud.\n";
 
     pcl::ExtractIndices<PointT> extract;
     extract.setInputCloud(cloud_filtered_and_cropped);
@@ -74,7 +74,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     typename pcl::PointCloud<PointT>::Ptr cloud_final(new pcl::PointCloud<PointT>);
     extract.filter(*cloud_final);
 
-    std::cout << "There are " << cloud_final->points.size() << " points in the final point cloud (ie., roof points are removed).\n";
+    // std::cout << "There are " << cloud_final->points.size() << " points in the final point cloud (ie., roof points are removed).\n";
 
 
     auto endTime = std::chrono::steady_clock::now();

@@ -32,7 +32,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     std::cout << "There are " << cloud->points.size() << " points in the original point cloud.\n";
 
     // First, use a voxel grid.
-    pcl::VoxelGrid<pcl::PointXYZI> voxel_grid;
+    pcl::VoxelGrid<PointT> voxel_grid;
     voxel_grid.setInputCloud(cloud);
     voxel_grid.setLeafSize(filterRes, filterRes, filterRes);
     typename pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
@@ -46,25 +46,42 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     roi_box->setMin(minPoint);
     roi_box->setMax(maxPoint);
     roi_box->setInputCloud(cloud_filtered);
-    // pcl::IndicesPtr indices_within_roi = roi_box->getIndices();
-    // std::cout << "There are " << indices_within_roi->size() << " indices computed by the crop box.\n";
-
-
-    // pcl::ExtractIndices<PointT> extract;
-    // extract.setInputCloud(cloud_filtered);
-    // extract.setIndices(indices_within_roi);
     typename pcl::PointCloud<PointT>::Ptr cloud_filtered_and_cropped(new pcl::PointCloud<PointT>);
     roi_box->filter(*cloud_filtered_and_cropped);
-    // extract.filter(*cloud_filtered_and_cropped);
+
+    // As a final step, remove the points from the ego vehicle's roof
+    typename pcl::CropBox<PointT>::Ptr roof_box(new pcl::CropBox<PointT>);
+    roof_box->setMin(Eigen::Vector4f(-1.5f, -1.7f, -1.0f, 1.0f));
+    roof_box->setMax(Eigen::Vector4f(3.0f, 1.7f, 0.0f, 1.0f));
+    roof_box->setInputCloud(cloud_filtered_and_cropped);
+    // Grab the indices of the roof points
+    std::vector<int> roof_point_indices;
+    roof_box->filter(roof_point_indices);
 
     std::cout << "There are " << cloud_filtered_and_cropped->points.size() << " points in the cropped point cloud.\n";
+
+    pcl::ExtractIndices<PointT> extract;
+    extract.setInputCloud(cloud_filtered_and_cropped);
+    // Unfortunately, the 'setIndices' method does not take a std::vector<int>, so we
+    // need to convert it to a pcl::PointIndices::Ptr beforehand.
+    pcl::PointIndices::Ptr pcl_roof_point_indices(new pcl::PointIndices);
+    for (int idx : roof_point_indices) {
+        pcl_roof_point_indices->indices.push_back(idx);
+    }
+    extract.setIndices(pcl_roof_point_indices);
+    // Set negative to true in order to remove the selected indices (instead of keeping them).
+    extract.setNegative(true);
+    typename pcl::PointCloud<PointT>::Ptr cloud_final(new pcl::PointCloud<PointT>);
+    extract.filter(*cloud_final);
+
+    std::cout << "There are " << cloud_final->points.size() << " points in the final point cloud (ie., roof points are removed).\n";
 
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    return cloud_filtered_and_cropped;
+    return cloud_final;
 
 }
 

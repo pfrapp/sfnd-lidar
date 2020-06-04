@@ -102,6 +102,16 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer)
     // Show the filtered point cloud.
     renderPointCloud(viewer,filteredCloud,"filteredCloud");
 
+    // Render a box to filter out the roof points
+    Box bbox;
+    bbox.x_min = -1.5;
+    bbox.x_max = 3.0;
+    bbox.y_min = -1.7;
+    bbox.y_max = 1.7;
+    bbox.z_min = -1.0;
+    bbox.z_max = 0.0;
+    renderBox(viewer, bbox, 0, Color(1.0, 0.0, 0.8), 0.3);
+
 }
 
 

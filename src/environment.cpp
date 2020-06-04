@@ -96,11 +96,11 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer)
 
     // Filter the cloud
     float filter_resolution = 0.5;
-    Eigen::Vector4f min_point(-10.0, -10.0, -3.0, 1.0);
-    Eigen::Vector4f max_point(30.0, 10.0, 3.0, 1.0);
+    Eigen::Vector4f min_point(-10.0, -6.5, -3.0, 1.0);
+    Eigen::Vector4f max_point(30.0, 6.5, 3.0, 1.0);
     pcl::PointCloud<pcl::PointXYZI>::Ptr filteredCloud = pointProcessorI->FilterCloud(inputCloud, filter_resolution, min_point, max_point);
     // Show the filtered point cloud.
-    renderPointCloud(viewer,filteredCloud,"filteredCloud");
+    // renderPointCloud(viewer,filteredCloud,"filteredCloud");
 
     // Render a box to filter out the roof points
     Box bbox;
@@ -110,7 +110,33 @@ void cityBlock(pcl::visualization::PCLVisualizer::Ptr& viewer)
     bbox.y_max = 1.7;
     bbox.z_min = -1.0;
     bbox.z_max = 0.0;
-    renderBox(viewer, bbox, 0, Color(1.0, 0.0, 0.8), 0.3);
+    // Do not draw a box with id 0, as this id will be used later for the bounding boxes
+    // of the other vehicles. Come up with a different id or just not draw this
+    // roof box any longer.
+    // renderBox(viewer, bbox, 0, Color(1.0, 0.0, 0.8), 0.3);
+
+    // Segment the point cloud (into obstacles and road).
+    std::pair<pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr> segmentCloud =
+                        pointProcessorI->Segment(filteredCloud, 100, 0.2);
+    renderPointCloud(viewer, segmentCloud.first, "obstacleCloud", Color(1,0,0));
+    renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0,1,0));
+
+    // Cluster the obstacles.
+    std::vector<typename pcl::PointCloud<pcl::PointXYZI>::Ptr> cloudClusters = pointProcessorI->Clustering(segmentCloud.first, 1.2 * filter_resolution, 3, 300);
+    int clusterID = 0;
+    std::vector<Color> colors = {Color(1, 0, 0), Color(1, 1, 0), Color(0, 1, 1), Color(0.3, 0.3, 1.0), Color(1.0, 0, 0.8)};
+    for (pcl::PointCloud<pcl::PointXYZI>::Ptr cluster : cloudClusters) {
+        std::cout << "Cluster size: ";
+        pointProcessorI->numPoints(cluster);
+        renderPointCloud(viewer, cluster, "obstacleCloud"+std::to_string(clusterID), colors[clusterID%colors.size()]);
+
+        // Render the bounding boxes
+        Box bbox = pointProcessorI->BoundingBox(cluster);
+        float opacity = 0.3;
+        renderBox(viewer, bbox, clusterID, colors[clusterID%colors.size()], opacity);
+
+        ++clusterID;
+    }
 
 }
 

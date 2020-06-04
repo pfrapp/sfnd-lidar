@@ -1,5 +1,6 @@
 // PCL lib Functions for processing point clouds 
 
+#include <algorithm>    // for sort
 #include "processPointClouds.h"
 
 
@@ -322,6 +323,81 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
         clusters.push_back(cloud_of_one_cluster);
     }
 
+
+    auto endTime = std::chrono::steady_clock::now();
+    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    std::cout << "clustering took " << elapsedTime.count() << " milliseconds and found " << clusters.size() << " clusters" << std::endl;
+
+    return clusters;
+}
+
+template<typename PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::MyClustering(
+        typename pcl::PointCloud<PointT>::Ptr cloud,
+        float clusterTolerance,
+        int minSize,
+        int maxSize)
+{
+    // We do not use maxSize in our own custom clustering routine.
+    (void) maxSize;
+
+    // Time clustering process
+    auto startTime = std::chrono::steady_clock::now();
+
+    // This is a vector of point clouds (in the form of point cloud pointers).
+    std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
+
+    // Number of points in the cloud.
+    int total_point_count = cloud->points.size();
+
+    // Copy the data from the cloud into a std::vector<std::vector<float>>.
+    std::vector<std::vector<float>> points(total_point_count);
+    for (int ii=0; ii<total_point_count; ii++) {
+        points[ii].push_back(cloud->points[ii].x);
+        points[ii].push_back(cloud->points[ii].y);
+        points[ii].push_back(cloud->points[ii].z);
+    }
+
+    // Create our own Kd-tree with type float and dimension 3.
+    clustering::KdTree<float, 3> *tree = new clustering::KdTree<float, 3>;
+    for (int ii=0; ii<total_point_count; ii++) {
+        tree->insert(points[ii], ii);
+    }
+
+    // Do the Euclidean clustering.
+    std::vector<std::vector<int>> cluster_indices = clustering::euclideanCluster<float, 3>(points, tree, clusterTolerance);
+    int cluster_count = cluster_indices.size();
+    // std::cout << "clustering found " << cluster_count << " clusters.\n";
+
+    // Sort the clusters according to size (because this is what the PCL also seems to do).
+    std::vector<std::pair<int,int>> cluster_sizes(cluster_count);
+    for (int ii=0; ii<cluster_count; ii++) {
+        cluster_sizes[ii].first = cluster_indices[ii].size();
+        // Needed for permutation (this is the actual index).
+        cluster_sizes[ii].second = ii;
+    }
+
+    // Sort in descending order (largest cluster first).
+    std::sort(cluster_sizes.begin(), cluster_sizes.end(), [](const std::pair<int,int>& a, const std::pair<int,int>& b) { return (a.first > b.first); });
+
+    // Create the point clouds for the clusters
+    for (int ii=0; ii<cluster_count; ii++) {
+        // Use sorted sequence.
+        // const std::vector<int>& inds_for_this_cluster = cluster_indices[ii];
+        const std::vector<int>& inds_for_this_cluster = cluster_indices[cluster_sizes[ii].second];
+
+        if (inds_for_this_cluster.size() >= minSize) {
+            typename pcl::PointCloud<PointT>::Ptr clusterCloud(new pcl::PointCloud<PointT>());
+            for (int idx : inds_for_this_cluster) {
+                clusterCloud->points.push_back(cloud->points[idx]);
+            }
+            clusterCloud->width = clusterCloud->points.size();
+            clusterCloud->height = 1;
+            clusterCloud->is_dense = true;
+            clusters.push_back(clusterCloud);
+        }
+
+    }
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
